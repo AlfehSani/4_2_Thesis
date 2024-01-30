@@ -247,7 +247,7 @@ struct Hashing {
 const int sz = 2005;
 std::vector<vector<int>> OV;
 int n; // number of added strings
-set<pair<int,int>> prefix_id,candidate_prefix_id, suffix_id, candidate_suffix_id; // isa,index
+set<pair<int,int>> prefix_id, suffix_id; // isa,index
 int new_string_add[sz];
 int brute[sz][sz];
 std::vector<string> string_list;
@@ -261,106 +261,111 @@ int find_match(int i, int j) { // max match of prefix of ith string and suffix o
 	for(int i = min(n1, n2);i && !mx;i--) {
 		if(a.get_hash(1, i) == b.get_hash(n2 - i + 1, n2)) mx = i;
 	}
+	// assert(OV[i][j] == mx);
 	return mx;
 }
 void add(string a) {
 	string_list.push_back(a);
 	int cur_len = a.size() + 1;
-	Hashing h(a);
-	hashes.push_back(h);
 	for(int i = 0; i < n; i++) new_string_add[i] += cur_len;
 	for(int i = 0; i < n; i++)
 		OV[i].push_back(0);
 	OV.emplace_back();
 	n++;
 	OV[n - 1].resize(n, 0);
-	string reverse_a = a;
-	reverse(reverse_a.begin(), reverse_a.end());
-	sa.push_front('#');
-	rev_sa.push_front('#');
-	for(char &cc:reverse_a) sa.push_front(cc);
-	for(char &cc:a) rev_sa.push_front(cc);
-	prefix_id.clear();
-	suffix_id.clear();
-	for(int i = 0; i < n; i++) {
-		prefix_id.insert({sa.isa(new_string_add[i]), i});
-		suffix_id.insert({rev_sa.isa(new_string_add[i]), i});
-	}
-	candidate_prefix_id = prefix_id;
-	candidate_suffix_id = suffix_id;
-	// first task
-	auto first_task = [&]() {
-		for(int i = cur_len - 1, j = 0; i > 0; i--, j++) {
-			int cur_suffix_id = sa.isa(j);
-			auto it = candidate_prefix_id.upper_bound({cur_suffix_id, -1});
-			while(it != candidate_prefix_id.end()) {
-				auto [id, ind] = *it;
-				int lcp = sa.query(new_string_add[ind], j);
-				// if(n == 3) {
-				// 	cout << j << " " << ind  << " " << lcp << "\n";
-				// }
-				if(lcp < i) break;
-				OV[ind][n - 1] = i;
-				it = candidate_prefix_id.erase(it);
-			}
-			it = candidate_prefix_id.upper_bound({cur_suffix_id, -1});
-			while(it != candidate_prefix_id.begin()) {
-				it--;
-				auto [id, ind] = *it;
-				int lcp = sa.query(new_string_add[ind], j);
-				// if(n == 3) {
-				// 	cout << j << " " << ind << " " << lcp << "\n";
-				// }
-				if(lcp < i) break;
-				OV[ind][n - 1] = i;
-				it = candidate_prefix_id.erase(it);
-			}
+	auto optimized_algorithm = [&] (){
+		string reverse_a = a;
+		reverse(reverse_a.begin(), reverse_a.end());
+		sa.push_front('#');
+		rev_sa.push_front('#');
+		for(char &cc:reverse_a) sa.push_front(cc);
+		for(char &cc:a) rev_sa.push_front(cc);
+		prefix_id.clear();
+		suffix_id.clear();
+		for(int i = 0; i < n; i++) {
+			prefix_id.insert({sa.isa(new_string_add[i]), i});
+			suffix_id.insert({rev_sa.isa(new_string_add[i]), i});
 		}
-	};
-	first_task();
-	// second task . This will works in reverse suffix array
-	auto second_task = [&] {
-		for(int i = cur_len - 1, j = 0; i > 0; i--, j++) {
-			int cur_suffix_id = rev_sa.isa(j);
-			auto it = candidate_suffix_id.upper_bound({cur_suffix_id, -1});
-			while(it != candidate_suffix_id.end()) {
-				auto [id, ind] = *it;
-				int lcp = rev_sa.query(new_string_add[ind], j);
-				if(lcp < i) break;
-				// if(n == 2) {
-				// 	cout << j << " " << ind << " " << lcp << "\n";
-				// }
-				OV[n - 1][ind] = i;
-				it = candidate_suffix_id.erase(it);
+		
+		// first task
+		auto first_task = [&]() {
+			for(int i = cur_len - 1, j = 0; i > 0; i--, j++) {
+				int cur_suffix_id = sa.isa(j);
+				auto it = prefix_id.upper_bound({cur_suffix_id, -1});
+				while(it != prefix_id.end()) {
+					auto [id, ind] = *it;
+					int lcp = sa.query(new_string_add[ind], j);
+					// if(n == 3) {
+					// 	cout << j << " " << ind  << " " << lcp << "\n";
+					// }
+					if(lcp < i) break;
+					OV[ind][n - 1] = i;
+					it = prefix_id.erase(it);
+				}
+				// it = prefix_id.upper_bound({cur_suffix_id, -1});
+				while(it != prefix_id.begin()) {
+					it--;
+					auto [id, ind] = *it;
+					int lcp = sa.query(new_string_add[ind], j);
+					// if(n == 3) {
+					// 	cout << j << " " << ind << " " << lcp << "\n";
+					// }
+					if(lcp < i) break;
+					OV[ind][n - 1] = i;
+					it = prefix_id.erase(it);
+				}
 			}
-			it = candidate_suffix_id.upper_bound({cur_suffix_id, -1});
-			while(it != candidate_suffix_id.begin()) {
-				it--;
-				auto [id, ind] = *it;
-				int lcp = rev_sa.query(new_string_add[ind], j);
-				if(lcp < i) break;
-				OV[n - 1][ind] = i;
-				it = candidate_suffix_id.erase(it);
+		};
+		// second task . This will works in reverse suffix array
+		auto second_task = [&] {
+			for(int i = cur_len - 1, j = 0; i > 0; i--, j++) {
+				int cur_suffix_id = rev_sa.isa(j);
+				auto it = suffix_id.upper_bound({cur_suffix_id, -1});
+				while(it != suffix_id.end()) {
+					auto [id, ind] = *it;
+					int lcp = rev_sa.query(new_string_add[ind], j);
+					if(lcp < i) break;
+					// if(n == 2) {
+					// 	cout << j << " " << ind << " " << lcp << "\n";
+					// }
+					OV[n - 1][ind] = i;
+					it = suffix_id.erase(it);
+				}
+				// it = suffix_id.upper_bound({cur_suffix_id, -1});
+				while(it != suffix_id.begin()) {
+					it--;
+					auto [id, ind] = *it;
+					int lcp = rev_sa.query(new_string_add[ind], j);
+					if(lcp < i) break;
+					OV[n - 1][ind] = i;
+					it = suffix_id.erase(it);
+				}
 			}
-		}
+		};
+		
+		first_task();
+		second_task();
 	};
 	
-	// for(int i = 0; i < n; i++)
-		// OV[n - 1][i] = find_match(n - 1, i);
-	second_task();
+
+	auto brute = [&]() {
+		Hashing h(a);
+		hashes.push_back(h);
+		for(int i = 0; i < n; i++) {
+			OV[n - 1][i] = find_match(n - 1, i);
+			OV[i][n - 1] = find_match(i, n - 1);
+		}
+	};
+
+	optimized_algorithm();
+	brute();
 }
 void prin() {
-	// cout << "\n";
+	cout << "\n";
 	// cout << n << "\n";
 	for(int i = 0; i < n; i++) {
 		for(int j = 0; j < n; j++) {
-			int mx = find_match(i, j);
-			if(mx != OV[i][j]) {
-				cout << mx << ' ' << OV[i][j] << ' ' << i << " " << j << "\n";
-				exit(0);
-			}
-			assert(mx == OV[i][j] );
-			// cout << OV[i][j] << " \n"[j == n - 1];
+			cout << OV[i][j] << " \n"[j == n - 1];
 		}
 	}
 }
