@@ -358,7 +358,7 @@ void add(string a) {
 	};
 
 	optimized_algorithm();
-	brute();
+	// brute();
 }
 void prin() {
 	cout << "\n";
@@ -374,6 +374,7 @@ int32_t main() {
 	cin.tie(0);
 	prec();
 	string c;
+	auto start = chrono::steady_clock::now();
 	auto for_loop = [&] {
 		for(int i = 0; i < 2; i++) {
 			cin >> c;
@@ -390,5 +391,9 @@ int32_t main() {
 		}
 	};
 	while_loop();
+	auto end = chrono::steady_clock::now();
+	cout << "Elapsed time in milliseconds: "
+    << chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    cout << " ms" << endl;
 	return 0; 
 }
